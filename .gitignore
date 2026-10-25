@@ -1,0 +1,20 @@
+# secrets / local config - never commit
+.env
+.env.*
+!.env.example
+
+# local data
+instance/
+*.db
+*.sqlite3
+
+# python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# test output
+tests/output/
+tests/fixtures/
+.pytest_cache/

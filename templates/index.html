@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Clinical Round</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body data-max-photo-mb="{{ max_photo_mb }}" data-max-photos="{{ max_photos }}">
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#" data-action="home" aria-label="Clinical Round - all rounds">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path d="M9 3h6v2h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3V3zm2 2v2h2V5h-2zm0 6v2H9v2h2v2h2v-2h2v-2h-2v-2h-2z" fill="currentColor"/></svg>
+      </span>
+      <span>
+        <span class="brand-title">Clinical Round</span>
+        <span class="brand-sub" lang="ar" dir="rtl">نموذج الجولات الادارية للإدارة التنفيذية لخدمات التمريض</span>
+      </span>
+    </a>
+    <button type="button" class="btn btn-onbrand" data-action="logout" id="btn-logout" hidden>Sign out</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="alert" class="alert" role="alert" hidden></div>
+
+  <!-- ============ SIGN IN ============ -->
+  <section id="view-login" hidden>
+    <form id="login-form" class="card login-card" autocomplete="on">
+      <h1>Sign in</h1>
+      <p class="hint">This application is protected. Enter your password to continue.</p>
+      <label class="field">
+        <span class="label">Password</span>
+        <input type="password" name="password" autocomplete="current-password" required>
+      </label>
+      <button type="submit" class="btn btn-primary btn-lg">Sign in</button>
+    </form>
+  </section>
+
+  <!-- ============ ROUNDS LIST ============ -->
+  <section id="view-home" hidden>
+    <div class="section-head">
+      <h1>Rounds</h1>
+      <button type="button" class="btn btn-primary" data-action="new-round"><span aria-hidden="true">＋</span> New Round</button>
+    </div>
+    <p class="hint retention-note" id="home-retention"></p>
+    <div id="rounds-list" class="rounds-list"></div>
+    <div id="rounds-empty" class="empty" hidden>
+      <p>No rounds yet.</p>
+      <button type="button" class="btn btn-primary" data-action="new-round"><span aria-hidden="true">＋</span> New Round</button>
+    </div>
+  </section>
+
+  <!-- ============ ROUND ============ -->
+  <section id="view-round" hidden>
+    <div class="crumbs"><a href="#" data-action="home">← All rounds</a></div>
+
+    <form id="meta-form" class="card" novalidate autocomplete="off">
+      <div class="card-head row">
+        <h2 id="meta-title">New round <span class="ar" lang="ar">جولة جديدة</span></h2>
+        <span id="round-status" class="status-badge" hidden></span>
+      </div>
+      <div class="grid">
+        <label class="field">
+          <span class="label">Facility Name <span class="ar" lang="ar">اسم المنشأة</span> <span class="req">*</span></span>
+          <input type="text" name="facility" dir="auto" maxlength="300">
+        </label>
+        <label class="field">
+          <span class="label">Department / Unit <span class="ar" lang="ar">القسم</span> <span class="req">*</span></span>
+          <input type="text" name="department" dir="auto" maxlength="300">
+        </label>
+        <label class="field">
+          <span class="label">Clinical Round Date <span class="ar" lang="ar">التاريخ</span> <span class="req">*</span></span>
+          <input type="date" name="round_date">
+        </label>
+        <label class="field">
+          <span class="label">Number of Nursing Staff <span class="ar" lang="ar">عدد التمريض</span></span>
+          <input type="text" name="nurses" dir="auto" inputmode="numeric" maxlength="100">
+        </label>
+        <label class="field">
+          <span class="label">Number of Patients <span class="ar" lang="ar">عدد المرضى</span></span>
+          <input type="text" name="patients" dir="auto" inputmode="numeric" maxlength="100">
+        </label>
+        <label class="field span-2-md">
+          <span class="label">Administrative Round Support Team <span class="ar" lang="ar">فريق دعم الجولات الإدارية</span></span>
+          <input type="text" name="supportTeam" dir="auto" maxlength="1000">
+        </label>
+        <label class="field span-3">
+          <span class="label">Hospital Nursing Administration Action / Corrective Action Plan
+            <span class="ar" lang="ar">الخطة التصحيحية المتخذة من إدارة التمريض بالمستشفى</span></span>
+          <textarea name="hospitalAction" dir="auto" rows="2"></textarea>
+        </label>
+        <label class="check span-3">
+          <input type="checkbox" name="repeatHeader">
+          <span>Repeat the report header on every page
+            <span class="hint block">Off by default, which keeps the template exactly as it is. Turning it on repeats the blue block and the column titles on each page, which uses more pages.</span></span>
+        </label>
+      </div>
+      <div class="form-actions">
+        <span class="hint" id="meta-saved"></span>
+        <button type="submit" class="btn btn-primary" id="btn-save-meta">Create round</button>
+      </div>
+    </form>
+
+    <div id="round-body" hidden>
+      <div class="section-head">
+        <h2>Observations <span class="ar" lang="ar">الملاحظات</span> <span id="obs-count" class="badge">0</span></h2>
+        <button type="button" class="btn btn-primary" data-action="add-obs" data-open-only><span aria-hidden="true">＋</span> Add Observation</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="obs-table" dir="rtl">
+          <thead>
+            <tr>
+              <th class="c-no">#</th>
+              <th>الملاحظات<span>Observation</span></th>
+              <th class="c-photos">توثيقها ( صور )<span>Photos</span></th>
+              <th>التوصيات<span>Recommendations</span></th>
+              <th class="c-rep">هل الملاحظات مكررة<span>Repeated?</span></th>
+              <th>الخطة التصحيحية<span>Corrective plan</span></th>
+              <th>التوثيق<span>Documentation</span></th>
+              <th class="c-act"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="obs-tbody"></tbody>
+        </table>
+        <div id="obs-empty" class="empty in-table">No observations yet. Use “Add Observation”.</div>
+      </div>
+
+      <div class="card generate-card">
+        <div class="gen-row">
+          <div>
+            <h2>Word report</h2>
+            <p class="hint" id="gen-status">Built from the official blank template each time you generate it. Reports are not stored.</p>
+          </div>
+          <div class="gen-actions">
+            <button type="button" class="btn btn-primary btn-lg" data-action="generate" id="btn-generate">Generate Word Report</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card danger-zone">
+        <div class="gen-row">
+          <div>
+            <h2>Round status</h2>
+            <p class="hint" id="retention-line"></p>
+          </div>
+          <div class="gen-actions">
+            <button type="button" class="btn" data-action="complete" id="btn-complete">Mark round completed</button>
+            <button type="button" class="btn" data-action="reopen" id="btn-reopen" hidden>Reopen round</button>
+            <button type="button" class="btn btn-danger" data-action="delete-round">Delete now</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ============ OBSERVATION EDITOR ============ -->
+<div id="editor" class="overlay" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="editor-title">
+    <div class="sheet-head">
+      <h2 id="editor-title">Observation</h2>
+      <button type="button" class="icon-btn" data-action="close-editor" aria-label="Close">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="obs-grid">
+        <label class="field">
+          <span class="label">1 · Observations <span class="ar" lang="ar">الملاحظات</span> <span class="req">*</span></span>
+          <textarea data-f="text" dir="auto" rows="5"></textarea>
+        </label>
+
+        <div class="field photos-field">
+          <span class="label">2 · Evidence / Photographs <span class="ar" lang="ar">توثيقها ( صور )</span></span>
+          <div class="thumbs" id="ed-thumbs"></div>
+          <div class="photo-actions">
+            <label class="btn btn-small file-btn">
+              <input type="file" id="ed-file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" multiple>
+              <span aria-hidden="true">＋</span> Add photos
+            </label>
+            <span class="hint">JPEG or PNG, up to {{ max_photo_mb }} MB each. The order here is the order in the report.</span>
+          </div>
+          <label class="check small" id="ed-wide-wrap">
+            <input type="checkbox" data-f="wide">
+            <span>Text-only wide row: the observation spans the photo column, like the template's last row. Only available without photos.</span>
+          </label>
+          <p class="hint" id="ed-nophoto">No photos: the evidence cell will read <span lang="ar" dir="rtl">«لايوجد»</span>.</p>
+        </div>
+
+        <label class="field">
+          <span class="label">3 · Recommendations <span class="ar" lang="ar">التوصيات</span></span>
+          <textarea data-f="recommendations" dir="auto" rows="3"></textarea>
+        </label>
+
+        <fieldset class="field repeated">
+          <legend class="label">4 · Is the observation repeated? <span class="ar" lang="ar">هل الملاحظات مكررة</span> <span class="req">*</span></legend>
+          <div class="seg">
+            <label><input type="radio" name="ed-repeated" value="yes" data-f="repeated"><span>Yes · نعم</span></label>
+            <label><input type="radio" name="ed-repeated" value="no" data-f="repeated"><span>No · لا</span></label>
+          </div>
+        </fieldset>
+
+        <label class="field">
+          <span class="label">5 · Corrective Action Plan <span class="ar" lang="ar">الخطة التصحيحية</span></span>
+          <textarea data-f="correctivePlan" dir="auto" rows="3"></textarea>
+        </label>
+
+        <label class="field">
+          <span class="label">6 · Documentation / Follow-up <span class="ar" lang="ar">التوثيق</span></span>
+          <textarea data-f="documentation" dir="auto" rows="3"></textarea>
+        </label>
+      </div>
+      <div id="editor-alert" class="alert alert-error" role="alert" hidden></div>
+    </div>
+    <div class="sheet-foot">
+      <span class="hint" id="editor-progress"></span>
+      <button type="button" class="btn" data-action="close-editor">Cancel</button>
+      <button type="button" class="btn btn-primary" data-action="save-obs" id="btn-save-obs">Save observation</button>
+    </div>
+  </div>
+</div>
+
+<footer class="foot">Clinical Round · personal tool · round data is deleted automatically, Word reports are never stored.</footer>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
