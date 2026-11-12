@@ -373,3 +373,38 @@ def test_no_files_written_to_disk(client):
     after = snap()
     new = {f for f in after - before if not f.endswith((".db", ".db-journal", ".db-wal", ".db-shm"))}
     assert not new, new
+
+
+# ======================================================== iPhone JPEG / HEIC uploads (Nov 2026 fix)
+def test_iphone_jpeg_heic_and_misnamed_uploads(app, client):
+    rid = new_round(client)
+    oid = add_obs(client, rid)["id"]
+    accepted = {
+        "IMG_1530.jpeg": "jpeg",          # iPhone JPEG with embedded gain map (Pillow: MPO)
+        "IMG_2001.HEIC": "jpeg",          # HEIC converted to JPEG
+        "IMG_2002_rotated.heic": "jpeg",  # HEIC with rotation
+        "heic_named.jpeg": "jpeg",        # HEIC content, .jpeg name
+        "png_named.jpeg": "png",          # PNG content, .jpeg name
+    }
+    for name in accepted:
+        r = client.upload(oid, name)
+        assert r.status_code == 201, (name, r.get_json())
+    # no extension at all, valid JPEG content
+    assert client.upload(oid, "photo", fx("portrait_1.jpg")).status_code == 201
+    for bad in ("fake.heic", "truncated.heic", "document.gif"):
+        r = client.upload(oid, bad)
+        assert r.status_code == 400, bad
+    assert "not a supported image" in client.upload(oid, "fake.heic").get_json()["error"]
+    with app.Session() as db:
+        stored = {p.filename: p for p in db.query(Photo).all()}
+    for name, ext in accepted.items():
+        p = stored[name]
+        assert p.ext == ext, name
+        im = Image.open(io.BytesIO(p.data))
+        assert im.format == ("JPEG" if ext == "jpeg" else "PNG"), name
+        assert im.height > im.width, f"{name} must be upright (portrait)"
+        assert len(im.getexif()) == 0, f"{name} metadata removed"
+    r = client.get(f"/api/rounds/{rid}/report.docx")
+    assert r.status_code == 200
+    z, doc = _doc(r)
+    assert len(doc.findall(".//" + W + "drawing")) == 6

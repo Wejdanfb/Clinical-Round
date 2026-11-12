@@ -456,9 +456,8 @@ def create_app(settings: Settings | None = None) -> Flask:
         if fs is None:
             raise ApiError("No photo was received.")
         name = os.path.basename(fs.filename or "photo")[:200]
-        ext = name.lower().rsplit(".", 1)[-1] if "." in name else ""
-        if ext not in ("jpg", "jpeg", "png"):
-            raise ApiError(f"“{name}” must be a .jpg, .jpeg or .png file.")
+        # The file type is checked from the file content in process_image(),
+        # not from the filename extension or the browser's MIME type.
         raw = fs.read()
         fs.close()
         try:

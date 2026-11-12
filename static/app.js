@@ -8,8 +8,6 @@
 
   const MAX_PHOTO_MB = Number(document.body.dataset.maxPhotoMb || 15);
   const MAX_PHOTOS = Number(document.body.dataset.maxPhotos || 12);
-  const OK_EXT = /\.(jpe?g|png)$/i;
-  const OK_TYPES = ["image/jpeg", "image/png", "image/pjpeg", ""];
 
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -368,15 +366,40 @@
     });
   }
 
+  // Real file type from the first bytes (not the name or browser MIME type):
+  // "jpeg" | "png" | "heif" | null. The server checks again on upload.
+  const HEIF_BRANDS = ["heic", "heix", "hevc", "hevx", "heim", "heis", "hevm", "hevs", "mif1", "msf1"];
+  async function sniffType(file) {
+    let b;
+    try { b = new Uint8Array(await file.slice(0, 64).arrayBuffer()); } catch (_) { return null; }
+    if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "jpeg";
+    if (b.length >= 8 && [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((v, i) => b[i] === v)) return "png";
+    const str = (i) => String.fromCharCode(b[i], b[i + 1], b[i + 2], b[i + 3]);
+    if (b.length >= 16 && str(4) === "ftyp") {
+      for (let i = 8; i + 4 <= b.length; i += 4) {
+        if (i === 12) continue;                    // minor-version field, not a brand
+        if (HEIF_BRANDS.includes(str(i))) return "heif";
+      }
+    }
+    return null;
+  }
+  // Shown for a HEIC photo the browser cannot preview (it is converted on upload).
+  const HEIC_PLACEHOLDER = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="110"><rect width="120" height="110" fill="#e3f1ef"/>' +
+    '<text x="60" y="52" font-family="sans-serif" font-size="18" font-weight="700" fill="#0a5454" text-anchor="middle">HEIC</text>' +
+    '<text x="60" y="74" font-family="sans-serif" font-size="11" fill="#0a5454" text-anchor="middle">converted on save</text></svg>');
+
   $("#ed-file").addEventListener("change", async (e) => {
     const files = Array.from(e.target.files || []);
     e.target.value = "";
     const errs = [];
     for (const f of files) {
       if (S.ed.existing.length + S.ed.pending.length >= MAX_PHOTOS) { errs.push(`Only ${MAX_PHOTOS} photos are allowed per observation.`); break; }
-      if (!OK_EXT.test(f.name) || !OK_TYPES.includes(f.type)) { errs.push(`“${f.name}” is not a JPEG or PNG image.`); continue; }
       if (f.size > MAX_PHOTO_MB * 1024 * 1024) { errs.push(`“${f.name}” is larger than ${MAX_PHOTO_MB} MB.`); continue; }
-      const url = await decodable(f);
+      const kind = await sniffType(f);
+      if (!kind) { errs.push(`“${f.name}” is not a supported image. Please use a JPEG, PNG or HEIC (iPhone) photo.`); continue; }
+      let url = await decodable(f);
+      if (!url && kind === "heif") url = HEIC_PLACEHOLDER;      // many browsers cannot preview HEIC
       if (!url) { errs.push(`“${f.name}” is damaged or cannot be opened as an image.`); continue; }
       S.ed.pending.push({ id: "n" + Math.random().toString(36).slice(2), file: f, url });
     }

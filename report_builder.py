@@ -143,13 +143,49 @@ class ReportData:
 # --------------------------------------------------------------------------
 _JPEG_MAGIC = b"\xff\xd8\xff"
 _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+# ISO-BMFF "ftyp" brands used by HEIC/HEIF photos (iPhone, many Android phones)
+_HEIF_BRANDS = {b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis", b"hevm", b"hevs", b"mif1", b"msf1"}
+
+# Pillow identifier for each detected file type. "MPO" is a JPEG that also
+# carries extra images (e.g. the HDR gain map in recent iPhone photos); it
+# is a normal JPEG for our purposes and its first frame is the photo itself.
+_PILLOW_FORMATS = {"jpeg": ("JPEG", "MPO"), "png": ("PNG",), "heif": ("HEIF",)}
+
+try:  # HEIC/HEIF support (iPhone photos); optional so the app still runs without it
+    from pillow_heif import register_heif_opener
+
+    register_heif_opener()
+    HEIF_SUPPORTED = True
+except ImportError:  # pragma: no cover
+    HEIF_SUPPORTED = False
+
+UNSUPPORTED_MSG = ("“{name}” is not a supported image. Please use a JPEG, PNG or HEIC (iPhone) photo.")
+
+
+def sniff_image_type(raw: bytes) -> Optional[str]:
+    """Identify the real file type from its first bytes (not the filename
+    or the browser-reported MIME type). Returns 'jpeg', 'png', 'heif' or None."""
+    if raw.startswith(_JPEG_MAGIC):
+        return "jpeg"
+    if raw.startswith(_PNG_MAGIC):
+        return "png"
+    if len(raw) >= 16 and raw[4:8] == b"ftyp":
+        box_size = int.from_bytes(raw[0:4], "big")
+        box = raw[8:min(max(box_size, 16), len(raw), 256)]
+        brands = {box[0:4]} | {box[i:i + 4] for i in range(8, len(box) - 3, 4)}
+        if brands & _HEIF_BRANDS:
+            return "heif"
+    return None
 
 
 def process_image(raw: bytes, display_name: str = "photo") -> Photo:
     """Validate an uploaded photo and return a cleaned copy.
 
-    * only real JPEG / PNG content is accepted (checked by signature and by
-      decoding the whole image, so truncated/corrupted files are rejected);
+    * the real format is detected from the file content (signature), never
+      from the filename or browser MIME type: JPEG (including iPhone JPEGs
+      with an embedded HDR gain map, which Pillow reports as "MPO"), PNG and
+      HEIC/HEIF are accepted; HEIC/HEIF is converted to JPEG;
+    * the whole image is decoded, so truncated/corrupted files are rejected;
     * camera orientation (EXIF) is applied, then all metadata (EXIF, GPS,
       etc.) is dropped;
     * large photos are downscaled so the .docx stays a reasonable size.
@@ -160,25 +196,31 @@ def process_image(raw: bytes, display_name: str = "photo") -> Photo:
     if len(raw) > MAX_IMAGE_BYTES:
         raise ReportInputError(
             f"The photo “{name}” is larger than {MAX_IMAGE_BYTES // (1024 * 1024)} MB.")
-    if not (raw.startswith(_JPEG_MAGIC) or raw.startswith(_PNG_MAGIC)):
-        raise ReportInputError(
-            f"“{name}” is not a JPEG or PNG image. Only .jpg, .jpeg and .png photos are supported.")
+    kind = sniff_image_type(raw)
+    if kind is None:
+        raise ReportInputError(UNSUPPORTED_MSG.format(name=name))
+    if kind == "heif" and not HEIF_SUPPORTED:
+        raise ReportInputError(f"“{name}” is a HEIC photo, which this server cannot convert. "
+                               "Please export it as JPEG and upload it again.")
 
     try:
         with Image.open(io.BytesIO(raw)) as probe:
             fmt = probe.format
             w_px, h_px = probe.size
-            if fmt not in ("JPEG", "PNG"):
-                raise ReportInputError(f"“{name}” is not a JPEG or PNG image.")
+            if fmt not in _PILLOW_FORMATS[kind]:
+                raise ReportInputError(UNSUPPORTED_MSG.format(name=name))
             if w_px * h_px > MAX_IMAGE_PIXELS:
                 raise ReportInputError(f"The photo “{name}” has too many pixels to process.")
-            probe.verify()                      # structural check
+            if kind != "heif":
+                probe.verify()                  # structural check (HEIF: full decode below)
         with Image.open(io.BytesIO(raw)) as im:
+            if getattr(im, "n_frames", 1) > 1:
+                im.seek(0)                      # MPO/HEIF: first frame is the photo
             im.load()                           # full decode: catches truncation
             im = ImageOps.exif_transpose(im)
             im.thumbnail((MAX_STORED_SIDE_PX, MAX_STORED_SIDE_PX), Image.LANCZOS)
             out = io.BytesIO()
-            if fmt == "JPEG":
+            if kind in ("jpeg", "heif"):        # HEIC/HEIF is stored as JPEG
                 if im.mode not in ("RGB", "L"):
                     im = im.convert("RGB")
                 im.save(out, "JPEG", quality=85, optimize=True)
@@ -201,7 +243,8 @@ def process_image(raw: bytes, display_name: str = "photo") -> Photo:
             return Photo(out.getvalue(), ext, im.size[0], im.size[1])
     except ReportInputError:
         raise
-    except (UnidentifiedImageError, OSError, SyntaxError, ValueError, Image.DecompressionBombError):
+    except (UnidentifiedImageError, OSError, SyntaxError, ValueError, RuntimeError,
+            Image.DecompressionBombError):
         raise ReportInputError(f"The photo “{name}” is damaged or could not be read.")
 
 

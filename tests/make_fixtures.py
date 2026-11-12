@@ -35,4 +35,32 @@ with open(os.path.join(HERE, "truncated.jpg"), "wb") as f:
     f.write(good[: len(good) // 3])
 with open(os.path.join(HERE, "document.gif"), "wb") as f:
     im = Image.new("RGB", (50, 50), "red"); b = io.BytesIO(); im.save(b, "GIF"); f.write(b.getvalue())
+# --- iPhone-style files -----------------------------------------------------
+# JPEG with an extra embedded image (HDR gain map) -> Pillow reports "MPO"
+main_img = Image.new("RGB", (1200, 1600), "#2a6f7f")
+ImageDraw.Draw(main_img).text((40, 40), "iPhone JPEG + gain map", fill="white")
+main_img.save(os.path.join(HERE, "IMG_1530.jpeg"), "MPO", save_all=True,
+              append_images=[Image.new("RGB", (600, 800), (128, 128, 128))])
+# PNG content saved with a .jpeg name (wrong extension)
+photo("png_named.jpeg", 800, 1000, "#5a3f7f", "PNG named .jpeg", fmt="PNG")
+try:
+    import pillow_heif
+
+    pillow_heif.register_heif_opener()
+    h = Image.new("RGB", (1200, 1600), "#7f2a4b")
+    ImageDraw.Draw(h).text((40, 40), "HEIC", fill="white")
+    h.save(os.path.join(HERE, "IMG_2001.HEIC"), "HEIF", quality=80)
+    # HEIC whose camera orientation says "rotate 90" (stored landscape, shown portrait)
+    r = Image.new("RGB", (1600, 1200), "#2a7f4b")
+    ex = Image.Exif(); ex[0x0112] = 6
+    r.save(os.path.join(HERE, "IMG_2002_rotated.heic"), "HEIF", quality=80, exif=ex.tobytes())
+    # real HEIC content but named .jpeg
+    h.save(os.path.join(HERE, "heic_named.jpeg"), "HEIF", quality=80)
+    data = open(os.path.join(HERE, "IMG_2001.HEIC"), "rb").read()
+    with open(os.path.join(HERE, "truncated.heic"), "wb") as f:
+        f.write(data[: len(data) // 3])
+except ImportError:
+    print("pillow-heif not installed: HEIC fixtures skipped")
+with open(os.path.join(HERE, "fake.heic"), "wb") as f:
+    f.write(b"\x00\x00\x00\x18ftypmp42" + os.urandom(200))   # MP4 video header, not a photo
 print("fixtures in", HERE)

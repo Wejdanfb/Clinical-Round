@@ -14,7 +14,7 @@ A personal, single-user web application for nursing clinical rounds. You create 
 2. **New Round**: enter Facility Name, Department / Unit and Clinical Round Date (required). Nursing staff, patients, support team and the hospital's corrective action plan are optional. Click **Create round**.
 3. **Add Observation** for each finding:
    - Observation (required)
-   - Photos (JPEG/PNG, up to 15 MB each, up to 12 per observation, in the order you choose)
+   - Photos (JPEG, PNG or iPhone HEIC — HEIC is converted to JPEG; up to 15 MB each, up to 12 per observation, in the order you choose)
    - Recommendations
    - Repeated? Yes/No (required; written as نعم / لا)
    - Corrective Action Plan

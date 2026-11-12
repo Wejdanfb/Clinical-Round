@@ -89,3 +89,19 @@ def test_errors():
         build_report(b"not a docx", ReportData(observations=[Observation(text="x", repeated="no")]))
     with pytest.raises(ReportInputError):
         process_image(open(os.path.join(FX, "truncated.jpg"), "rb").read(), "t.jpg")
+
+
+def test_sniff_and_iphone_formats():
+    from report_builder import sniff_image_type
+    rd = lambda n: open(os.path.join(FX, n), "rb").read()  # noqa: E731
+    assert sniff_image_type(rd("IMG_1530.jpeg")) == "jpeg"
+    assert sniff_image_type(rd("png_named.jpeg")) == "png"
+    assert sniff_image_type(rd("IMG_2001.HEIC")) == "heif"
+    assert sniff_image_type(rd("fake.heic")) is None
+    assert sniff_image_type(b"") is None
+    p = process_image(rd("IMG_1530.jpeg"), "IMG_1530.jpeg")
+    assert p.ext == "jpeg" and (p.width_px, p.height_px) == (1200, 1600)
+    h = process_image(rd("IMG_2001.HEIC"), "IMG_2001.HEIC")
+    assert h.ext == "jpeg" and h.data[:3] == b"\xff\xd8\xff"
+    z, doc, tbl, rows = build([Observation(text="آيفون", repeated="no", photos=[p, h])])
+    assert len(rows[0].findall(".//" + W + "drawing")) == 2
