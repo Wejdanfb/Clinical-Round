@@ -417,9 +417,9 @@
   }
   // Shown for a HEIC photo the browser cannot preview (it is converted on upload).
   const HEIC_PLACEHOLDER = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="110"><rect width="120" height="110" fill="#e3f1ef"/>' +
-    '<text x="60" y="52" font-family="sans-serif" font-size="18" font-weight="700" fill="#0a5454" text-anchor="middle">HEIC</text>' +
-    '<text x="60" y="74" font-family="sans-serif" font-size="11" fill="#0a5454" text-anchor="middle">converted on save</text></svg>');
+    '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="110"><rect width="120" height="110" fill="#EAF7FB"/>' +
+    '<text x="60" y="52" font-family="sans-serif" font-size="18" font-weight="700" fill="#152641" text-anchor="middle">HEIC</text>' +
+    '<text x="60" y="74" font-family="sans-serif" font-size="11" fill="#152641" text-anchor="middle">converted on save</text></svg>');
 
   $("#ed-file").addEventListener("change", async (e) => {
     const files = Array.from(e.target.files || []);
