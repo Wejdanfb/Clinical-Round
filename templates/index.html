@@ -57,11 +57,18 @@
   <section id="view-round" hidden>
     <div class="crumbs"><a href="#" data-action="home">← All rounds</a></div>
 
-    <form id="meta-form" class="card" novalidate autocomplete="off">
-      <div class="card-head row">
-        <h2 id="meta-title">New round <span class="ar" lang="ar">جولة جديدة</span></h2>
-        <span id="round-status" class="status-badge" hidden></span>
-      </div>
+    <form id="meta-form" class="card accordion" novalidate autocomplete="off">
+      <h2 class="acc-heading">
+        <button type="button" class="acc-toggle" id="meta-toggle" aria-expanded="true" aria-controls="meta-panel">
+          <span class="acc-text">
+            <span class="acc-title">Round Information <span class="acc-sep" aria-hidden="true">|</span> <span lang="ar" dir="rtl">بيانات الجولة</span></span>
+            <span class="acc-meta"><span class="acc-summary" id="meta-summary"></span><span id="round-status" class="status-badge" hidden></span></span>
+          </span>
+          <svg class="acc-chevron" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </h2>
+      <div class="acc-panel" id="meta-panel" role="region" aria-labelledby="meta-toggle">
+      <div class="acc-inner">
       <div class="grid">
         <label class="field">
           <span class="label">Facility Name <span class="ar" lang="ar">اسم المنشأة</span> <span class="req">*</span></span>
@@ -101,6 +108,8 @@
       <div class="form-actions">
         <span class="hint" id="meta-saved"></span>
         <button type="submit" class="btn btn-primary" id="btn-save-meta">Create round</button>
+      </div>
+      </div>
       </div>
     </form>
 

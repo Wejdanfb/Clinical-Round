@@ -135,12 +135,36 @@
   const metaForm = $("#meta-form");
   const META_FIELDS = ["facility", "department", "round_date", "nurses", "patients", "supportTeam", "hospitalAction"];
 
+  // ---- Round Information accordion (display only: never reads or changes field values)
+  const metaPanel = $("#meta-panel");
+  const metaToggle = $("#meta-toggle");
+
+  function setMetaExpanded(expanded) {
+    metaForm.classList.toggle("collapsed", !expanded);
+    metaToggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+    metaPanel.inert = !expanded;          // hidden fields cannot be tabbed into while collapsed
+  }
+
+  function updateMetaSummary(note) {
+    const box = $("#meta-summary");
+    if (!S.round) { box.textContent = "New round. Enter the details below."; return; }
+    const r = S.round.round;
+    const parts = [r.facility, r.department, r.round_date ? fmtDate(r.round_date) : ""].filter(Boolean);
+    box.innerHTML = parts.map((p) => `<span dir="auto">${esc(p)}</span>`).join('<span class="dot" aria-hidden="true">·</span>') +
+      (note ? `<span class="acc-note">${esc(note)}</span>` : "");
+  }
+
+  metaToggle.addEventListener("click", () => {
+    setMetaExpanded(metaForm.classList.contains("collapsed"));
+  });
+
   function newRound() {
     S.round = null;
     show("round");
     metaForm.reset();
     setMetaDisabled(false);
-    $("#meta-title").innerHTML = 'New round <span class="ar" lang="ar">جولة جديدة</span>';
+    updateMetaSummary();
+    setMetaExpanded(true);                // new round: expanded to enter the details
     $("#btn-save-meta").textContent = "Create round";
     $("#round-status").hidden = true;
     $("#meta-saved").textContent = "";
@@ -153,6 +177,7 @@
     S.round = st;
     show("round");
     fillMeta();
+    setMetaExpanded(false);               // existing round (incl. right after creating it): collapsed
     renderRound();
   }
 
@@ -160,7 +185,7 @@
     const r = S.round.round;
     META_FIELDS.forEach((f) => { metaForm.elements[f].value = r[f] || ""; });
     metaForm.elements.repeatHeader.checked = !!r.repeatHeader;
-    $("#meta-title").innerHTML = `<span dir="auto">${esc(r.department)}</span> · <span dir="auto">${esc(r.facility)}</span>`;
+    updateMetaSummary();
     $("#btn-save-meta").textContent = "Save details";
     $("#meta-saved").textContent = "";
     S.metaDirty = false;
@@ -217,7 +242,11 @@
     });
   }
 
-  metaForm.addEventListener("input", () => { S.metaDirty = true; $("#meta-saved").textContent = "Unsaved changes"; });
+  metaForm.addEventListener("input", () => {
+    S.metaDirty = true;
+    $("#meta-saved").textContent = "Unsaved changes";
+    if (S.round) updateMetaSummary("Unsaved changes");   // still visible if the section is collapsed
+  });
 
   metaForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -243,6 +272,9 @@
         fillMeta();
         renderRound();
         $("#meta-saved").textContent = "Saved ✓";
+        updateMetaSummary("Saved ✓");
+        setMetaExpanded(false);           // after saving: collapse to save space
+        metaToggle.focus();
       }
     } catch (err) { fail(err); }
     finally { btn.disabled = false; }

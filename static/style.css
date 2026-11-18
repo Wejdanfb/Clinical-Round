@@ -275,3 +275,42 @@ body.modal-open { overflow: hidden; }
   .round-actions .btn { flex: 1; }
   .form-actions .btn { width: 100%; }
 }
+
+/* ===================== Round Information accordion ===================== */
+.accordion { padding: 0; overflow: hidden; }
+.acc-heading { margin: 0; font-size: 1rem; }
+.acc-toggle {
+  width: 100%; display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px; background: transparent; border: 0; cursor: pointer;
+  font: inherit; color: var(--ink); text-align: start; -webkit-tap-highlight-color: transparent;
+}
+.acc-toggle:hover { background: #f6f9f8; }
+.acc-toggle:focus-visible { outline: 3px solid rgba(15,110,110,.35); outline-offset: -3px; }
+.acc-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.acc-title { font-size: 1.08rem; font-weight: 650; color: var(--teal-dark); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.acc-sep { color: #b7c1be; margin: 0 .15em; font-weight: 400; }
+.acc-summary { color: var(--muted); font-size: .88rem; font-weight: 500; display: flex; flex-wrap: wrap; gap: 2px 6px; overflow-wrap: anywhere; }
+.acc-summary .dot { color: #b7c1be; }
+.acc-note { margin-inline-start: 6px; color: var(--teal-dark); font-weight: 600; }
+.acc-meta .status-badge { flex: none; font-size: .74rem; padding: 2px 9px; }
+.acc-chevron { flex: none; color: var(--teal-dark); transition: transform .22s ease; }
+.accordion.collapsed .acc-chevron { transform: rotate(0deg); }
+.accordion:not(.collapsed) .acc-chevron { transform: rotate(180deg); }
+
+/* smooth height animation without measuring content */
+.acc-panel { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .25s ease; }
+.accordion.collapsed .acc-panel { grid-template-rows: 0fr; }
+.acc-inner { min-height: 0; overflow: hidden; padding: 0 18px; transition: padding .25s ease, visibility 0s linear 0s; }
+.accordion:not(.collapsed) .acc-inner { padding: 4px 18px 18px; border-top: 1px solid var(--line); padding-top: 16px; }
+.accordion.collapsed .acc-inner { visibility: hidden; transition: padding .25s ease, visibility 0s linear .25s; }
+
+@media (max-width: 640px) {
+  .acc-toggle { padding: 12px 14px; gap: 10px; }
+  .accordion:not(.collapsed) .acc-inner { padding: 14px 14px 14px; }
+  .acc-title { font-size: 1rem; }
+  .acc-summary { font-size: .84rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .acc-panel, .acc-inner, .acc-chevron { transition: none; }
+}
