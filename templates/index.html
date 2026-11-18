@@ -1,3 +1,6 @@
+{#- Brand logo: one asset, used everywhere. To replace the logo, overwrite
+    static/brand/logo.png and run `python tools/make_favicons.py`. -#}
+{%- set LOGO = url_for('static', filename='brand/logo.png') -%}
 <!doctype html>
 <html lang="en">
 <head>
@@ -5,15 +8,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <title>Clinical Round</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='brand/favicon-32.png') }}">
+  <link rel="icon" type="image/png" sizes="48x48" href="{{ url_for('static', filename='brand/favicon-48.png') }}">
+  <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='brand/icon-192.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='brand/apple-touch-icon.png') }}">
+  <link rel="preload" as="image" href="{{ LOGO }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body data-max-photo-mb="{{ max_photo_mb }}" data-max-photos="{{ max_photos }}">
 <header class="topbar">
   <div class="topbar-inner">
     <a class="brand" href="#" data-action="home" aria-label="Clinical Round - all rounds">
-      <span class="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="22" height="22"><path d="M9 3h6v2h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3V3zm2 2v2h2V5h-2zm0 6v2H9v2h2v2h2v-2h2v-2h-2v-2h-2z" fill="currentColor"/></svg>
-      </span>
+      <span class="logo-frame logo-header"><img src="{{ LOGO }}" alt="WEJ DAN.B logo" width="2000" height="2000" decoding="async"></span>
       <span>
         <span class="brand-title">Clinical Round</span>
         <span class="brand-sub" lang="ar" dir="rtl">نموذج الجولات الادارية للإدارة التنفيذية لخدمات التمريض</span>
@@ -29,6 +35,7 @@
   <!-- ============ SIGN IN ============ -->
   <section id="view-login" hidden>
     <form id="login-form" class="card login-card" autocomplete="on">
+      <span class="logo-frame logo-login"><img src="{{ LOGO }}" alt="WEJ DAN.B logo" width="2000" height="2000" decoding="async"></span>
       <h1>Sign in</h1>
       <p class="hint">This application is protected. Enter your password to continue.</p>
       <label class="field">
