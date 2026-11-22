@@ -303,23 +303,30 @@ body.modal-open { overflow: hidden; }
 }
 
 /* ===================== Brand logo =====================
-   static/brand/logo.png is the original file (2000 x 2000, transparent
-   border of 427 px around a 1146 px logo square). The frame shows the logo
-   square at --logo-size; only the transparent border falls outside it.
-   The image is scaled uniformly (never stretched, recoloured or filtered). */
+   static/brand/logo.png is the original file, used unchanged: a 2000 x 2000
+   canvas with a transparent margin around the logo mark (mark at x=405,
+   y=670, 1109 x 660 px - printed by tools/make_favicons.py). The frame below
+   shows the mark at height --logo-h with its own aspect ratio; only the
+   transparent margin falls outside the frame. The image is scaled uniformly
+   (never stretched, cropped into the mark, recoloured or filtered).
+   To use a different logo, update these five numbers. */
 .logo-frame {
-  --logo-size: 46px;
-  position: relative; display: block; flex: none;
-  width: var(--logo-size); height: var(--logo-size); overflow: hidden;
+  --img-w: 2000; --mark-x: 405; --mark-y: 670; --mark-w: 1109; --mark-h: 660;
+  --logo-h: 32px;
+  position: relative; display: block; flex: none; overflow: hidden;
+  height: var(--logo-h);
+  width: calc(var(--logo-h) * var(--mark-w) / var(--mark-h));
 }
 .logo-frame img {
   position: absolute; max-width: none;
-  width: calc(var(--logo-size) * 2000 / 1146); height: calc(var(--logo-size) * 2000 / 1146);
-  left: calc(var(--logo-size) * -427 / 1146); top: calc(var(--logo-size) * -427 / 1146);
+  width: calc(var(--logo-h) * var(--img-w) / var(--mark-h));
+  height: calc(var(--logo-h) * var(--img-w) / var(--mark-h));
+  left: calc(var(--logo-h) * var(--mark-x) / var(--mark-h) * -1);
+  top: calc(var(--logo-h) * var(--mark-y) / var(--mark-h) * -1);
 }
-.logo-header { --logo-size: 48px; }
-.logo-login { --logo-size: 128px; margin: 4px auto 6px; }
+.logo-header { --logo-h: 30px; margin: 0 4px; }
+.logo-login { --logo-h: 76px; margin: 10px auto 10px; }
 @media (max-width: 640px) {
-  .logo-header { --logo-size: 42px; }
-  .logo-login { --logo-size: 108px; }
+  .logo-header { --logo-h: 26px; margin: 0 2px; }
+  .logo-login { --logo-h: 62px; }
 }
