@@ -330,3 +330,8 @@ body.modal-open { overflow: hidden; }
   .logo-header { --logo-h: 26px; margin: 0 2px; }
   .logo-login { --logo-h: 62px; }
 }
+
+/* export filename preview */
+.gen-file { margin: 6px 0 0; font-size: .86rem; color: var(--muted); overflow-wrap: anywhere; }
+.gen-file strong { color: var(--navy); font-weight: 600; }
+.gen-warn { margin: 6px 0 0; padding: 6px 10px; border-radius: 8px; background: var(--danger-soft); border: 1px solid var(--danger-line); color: #7A1A12; font-size: .84rem; }

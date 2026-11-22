@@ -33,7 +33,7 @@ from models import (AuthAttempt, Observation, Photo, Round, as_utc, init_db, mak
                     make_session_factory, utcnow)
 from report_builder import (Observation as RObservation, Photo as RPhoto, ReportData, ReportInputError,
                             TemplateError, build_report, clean_text, load_template_map, process_image,
-                            safe_filename)
+                            report_filename)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(BASE_DIR, "assets", "clinical_round_template.docx")
@@ -176,7 +176,8 @@ def create_app(settings: Settings | None = None) -> Flask:
                 "patients": r.patients, "supportTeam": r.support_team, "hospitalAction": r.hospital_action,
                 "repeatHeader": r.repeat_header, "created_at": iso(r.created_at),
                 "completed_at": iso(r.completed_at), "delete_due": delete_due(r),
-                "filename": safe_filename(r.department, r.round_date),
+                "filename": report_filename(r.facility, r.department, r.round_date)[0],
+                "filename_warnings": report_filename(r.facility, r.department, r.round_date)[1],
             },
             "observations": [{
                 "id": o.id, "no": i, "text": o.text, "recommendations": o.recommendations,
@@ -535,7 +536,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             for ob in rd.observations:
                 ob.photos.clear()
         return send_file(io.BytesIO(data), as_attachment=True,
-                         download_name=safe_filename(r.department, r.round_date),
+                         download_name=report_filename(r.facility, r.department, r.round_date)[0],
                          mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                          max_age=0)
 

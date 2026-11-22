@@ -20,7 +20,7 @@ A personal, single-user web application for nursing clinical rounds. You create 
    - Corrective Action Plan
    - Documentation / Follow-up
 4. All observations appear in **one table** laid out like the report. Each row can be edited (✎), deleted (✕) or moved (↑ ↓). On a phone, the table turns into cards.
-5. **Generate Word Report** downloads `Clinical_Round_<Unit>_<YYYY-MM-DD>.docx`. You can generate it again after any change.
+5. **EXPORT** (in the *Export Report* section) downloads the Word report named `C.R.INSTITUTE.UNIT.MONTH.YEAR.docx`, e.g. `C.R.SPH.ICU1.NOV.26.docx`. The name is built automatically: INSTITUTE is the hospital code (SPH, MCH or MGH) written in Facility Name; UNIT is the English letters/numbers in Department / Unit (`ICU 1` → `ICU1`, `الجراحة 2A` → `2A`); MONTH and YEAR come from the Clinical Round Date. A code that cannot be found is written as `NOCODE`, and the export section shows a warning and the file name before you export. You can export again after any change.
 6. When you are done, **Mark round completed**. The round becomes read-only and is permanently deleted 7 days later. **Delete now** removes it immediately. **Reopen round** lets you edit it again before then.
 
 How the Word report is filled:
@@ -172,4 +172,4 @@ tests/               automated tests + synthetic photo generator
 - The report uses the **Janna LT** font named by the template. Install it on the computer that opens the report, as with the original form; otherwise Word substitutes a similar font.
 - The template's footer wave and "King Salman Medical City" mark sit behind the text, slightly inside the page's text area. On a completely full page, the bottom of the table can run over that mark. The text stays readable on top. This comes from the official template, which is left unchanged.
 - The template ends with five empty lines after the table. These could push a blank page onto the end of the report, so the app keeps one of them (Word needs one after a table) at 1 pt height and removes the others.
-- The filename uses the Latin letters and numbers from the department (`الجراحة 2A` → `Clinical_Round_2A_2026-10-21.docx`), because browsers replace Arabic download names with "download".
+- The report filename follows `C.R.INSTITUTE.UNIT.MONTH.YEAR.docx` (see "How to use it"). It uses English letters only, because browsers replace Arabic download names with "download".

@@ -336,6 +336,55 @@ def safe_filename(department: str, round_date: Optional[date]) -> str:
     return "_".join(parts) + ".docx"
 
 
+# ---------------------------------------------------------------------------
+# Report filename convention:  C.R.INSTITUTE.UNIT.MONTH.YEAR.docx
+#   e.g. C.R.SPH.ICU1.NOV.26.docx
+# Codes are read from the round's own fields (never invented):
+#   INSTITUTE - one of the hospital codes below, written in Facility Name
+#   UNIT      - the English letters/digits in Department / Unit
+#               ("ICU 1" -> ICU1, "الجراحة 2A" -> 2A, "P3AB" -> P3AB)
+#   MONTH/YEAR- from the Clinical Round Date (not today's date)
+# A code that cannot be found is written as NOCODE and reported back, so the
+# file is still produced but is clearly marked.
+# ---------------------------------------------------------------------------
+HOSPITAL_CODES = ("SPH", "MCH", "MGH")
+MISSING_CODE = "NOCODE"
+EN_MONTHS = ("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
+_HOSPITAL_RE = re.compile(r"(?<![A-Za-z])(" + "|".join(HOSPITAL_CODES) + r")(?![A-Za-z])", re.IGNORECASE)
+
+
+def institute_code(facility: str) -> Optional[str]:
+    """The hospital code written in Facility Name, or None if there is none
+    (or if more than one different code appears)."""
+    found = {m.upper() for m in _HOSPITAL_RE.findall(clean_text(facility))}
+    return found.pop() if len(found) == 1 else None
+
+
+def unit_code(department: str) -> Optional[str]:
+    """English letters and digits of Department / Unit, uppercased, without
+    spaces or symbols; None if the department has none."""
+    code = "".join(re.findall(r"[A-Za-z0-9]+", clean_text(department))).upper()
+    return code or None
+
+
+def report_filename(facility: str, department: str, round_date: Optional[date]):
+    """Returns (filename, warnings). Warnings list each code that was missing."""
+    warnings = []
+    inst = institute_code(facility)
+    if inst is None:
+        warnings.append("Hospital code not found: write SPH, MCH or MGH in Facility Name.")
+    unit = unit_code(department)
+    if unit is None:
+        warnings.append("Unit code not found: include the unit's English code (e.g. ICU1, P3AB, ER) in Department / Unit.")
+    if round_date is None:
+        warnings.append("Clinical Round Date is missing.")
+        month, year = MISSING_CODE, MISSING_CODE
+    else:
+        month, year = EN_MONTHS[round_date.month - 1], f"{round_date.year % 100:02d}"
+    parts = ["C.R", inst or MISSING_CODE, unit or MISSING_CODE, month, year]
+    return ".".join(parts) + ".docx", warnings
+
+
 # --------------------------------------------------------------------------
 # Run / paragraph construction
 # --------------------------------------------------------------------------

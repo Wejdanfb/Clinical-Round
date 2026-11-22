@@ -190,7 +190,9 @@ def test_round_validation_and_update(client):
     rid = new_round(client)
     st = client.patch(f"/api/rounds/{rid}", dict(META, patients="50", hospitalAction="خطة")).get_json()
     assert st["round"]["patients"] == "50" and st["round"]["hospitalAction"] == "خطة"
-    assert st["round"]["filename"] == "Clinical_Round_2A_2026-10-21.docx"
+    # facility "مستشفى الاختبار" has no hospital code -> NOCODE + warning
+    assert st["round"]["filename"] == "C.R.NOCODE.2A.OCT.26.docx"
+    assert st["round"]["filename_warnings"]
 
 
 def test_observation_crud_order_and_conflict(client):
@@ -312,7 +314,7 @@ def _txt(el):
 
 
 def test_word_report_from_database(client, tmp_path):
-    rid = new_round(client, hospitalAction="رفع طلب صيانة")
+    rid = new_round(client, hospitalAction="رفع طلب صيانة", facility="مستشفى الاختبار SPH")
     o1 = add_obs(client, rid, "لوحظ وجود المحلولين\nNormal Saline (0.9% NS)", "no", recommendations="فصل المحلولين")["id"]
     client.upload(o1, "portrait_1.jpg")
     client.upload(o1, "landscape_1.jpg")
@@ -320,11 +322,11 @@ def test_word_report_from_database(client, tmp_path):
     add_obs(client, rid, "صف عريض", "no", wide=True)
     r = client.get(f"/api/rounds/{rid}/report.docx")
     assert r.status_code == 200
-    assert "Clinical_Round_2A_2026-10-21.docx" in r.headers["Content-Disposition"]
+    assert "C.R.SPH.2A.OCT.26.docx" in r.headers["Content-Disposition"]
     z, doc = _doc(r)
     rows = doc.find(W + "body").find(W + "tbl").findall(W + "tr")
     meta = _txt(rows[0]) + _txt(rows[1])
-    for v in ("مستشفى الاختبار", "الجراحة 2A", "21 اكتوبر 2026", "عدد التمريض: 6", "عدد المرضى: 42",
+    for v in ("مستشفى الاختبار SPH", "الجراحة 2A", "21 اكتوبر 2026", "عدد التمريض: 6", "عدد المرضى: 42",
               "رفع طلب صيانة", "Test Member"):
         assert v in meta, v
     obs = rows[3:]
@@ -408,3 +410,37 @@ def test_iphone_jpeg_heic_and_misnamed_uploads(app, client):
     assert r.status_code == 200
     z, doc = _doc(r)
     assert len(doc.findall(".//" + W + "drawing")) == 6
+
+
+
+# ======================================================== report filename convention
+def test_report_filename_convention():
+    from datetime import date
+    from report_builder import report_filename, EN_MONTHS
+    ok = [
+        (("SPH", "ICU1", date(2026, 11, 3)), "C.R.SPH.ICU1.NOV.26.docx"),
+        (("MCH", "P3AB", date(2026, 10, 21)), "C.R.MCH.P3AB.OCT.26.docx"),
+        (("MGH", "ER", date(2027, 1, 9)), "C.R.MGH.ER.JAN.27.docx"),
+        (("مستشفى الملك سلمان sph", "العناية المركزة ICU 1", date(2026, 11, 22)), "C.R.SPH.ICU1.NOV.26.docx"),
+        (("MCH - Maternity", "الجراحة 2A", date(2030, 3, 1)), "C.R.MCH.2A.MAR.30.docx"),
+        (("Hospital (MGH)", "er", date(2005, 12, 31)), "C.R.MGH.ER.DEC.05.docx"),
+    ]
+    for args, expected in ok:
+        name, warnings = report_filename(*args)
+        assert name == expected and warnings == [], (args, name, warnings)
+    # missing / ambiguous codes are marked, never guessed
+    name, w = report_filename("مستشفى الملك سلمان", "الجراحة", date(2026, 11, 22))
+    assert name == "C.R.NOCODE.NOCODE.NOV.26.docx" and len(w) == 2
+    name, w = report_filename("SPH / MCH", "ICU", date(2026, 11, 22))
+    assert name == "C.R.NOCODE.ICU.NOV.26.docx" and "Hospital code" in w[0]
+    assert report_filename("SPHX", "ICU", date(2026, 1, 1))[0].startswith("C.R.NOCODE.")   # not a whole code
+    # month: always 3 uppercase English letters; year: exactly 2 digits; from the round date
+    import re
+    for m in range(1, 13):
+        name = report_filename("SPH", "ICU", date(2026, m, 15))[0]
+        mon, yy = name.split(".")[4:6]
+        assert re.fullmatch(r"[A-Z]{3}", mon) and mon == EN_MONTHS[m - 1] and re.fullmatch(r"\d{2}", yy)
+    assert report_filename("SPH", "ICU", date(2019, 4, 1))[0] == "C.R.SPH.ICU.APR.19.docx"   # not today's date
+    # only safe characters
+    name = report_filename('MGH', 'I/C:U*1 <>|"?', date(2026, 11, 1))[0]
+    assert re.fullmatch(r"[A-Z0-9.]+\.docx", name.replace(".docx", "") + ".docx") and name == "C.R.MGH.ICU1.NOV.26.docx"

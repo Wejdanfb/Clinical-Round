@@ -132,6 +132,7 @@
   });
 
   // ------------------------------------------------------------------ round
+  const GEN_STATUS_DEFAULT = "From template to report, effortlessly. Nothing is stored.";
   const metaForm = $("#meta-form");
   const META_FIELDS = ["facility", "department", "round_date", "nurses", "patients", "supportTeam", "hospitalAction"];
 
@@ -176,6 +177,7 @@
     const st = await api("GET", "/api/rounds/" + encodeURIComponent(id));
     S.round = st;
     show("round");
+    $("#gen-status").textContent = GEN_STATUS_DEFAULT;   // no leftover "Downloaded …" from another round
     fillMeta();
     setMetaExpanded(false);               // existing round (incl. right after creating it): collapsed
     renderRound();
@@ -210,6 +212,12 @@
     $("#retention-line").textContent = open
       ? `In progress. If nothing changes, this round is deleted automatically on ${fmtDate(r.delete_due, true)}. When you have your final report, mark it completed: it is then kept for ${st.retention.completed_days} more days.`
       : `Completed on ${fmtDate(r.completed_at, true)}. Read-only. This round and all its photos will be permanently deleted on ${fmtDate(r.delete_due, true)}. You can still generate the report until then, or reopen the round to edit it.`;
+    // Export filename preview: C.R.INSTITUTE.UNIT.MONTH.YEAR.docx (built by the server)
+    $("#gen-filename").innerHTML = `File name: <strong dir="ltr">${esc(r.filename)}</strong>`;
+    const warn = $("#gen-warn");
+    const warnings = r.filename_warnings || [];
+    warn.hidden = !warnings.length;
+    warn.textContent = warnings.length ? warnings.join(" ") + " Until then, NOCODE is used in the file name." : "";
     $("#obs-count").textContent = st.observations.length;
     $("#obs-empty").hidden = st.observations.length > 0;
 
@@ -539,7 +547,7 @@
   async function generate() {
     const btn = $("#btn-generate");
     const st = $("#gen-status");
-    btn.disabled = true; btn.textContent = "Generating…";
+    btn.disabled = true; btn.textContent = "EXPORTING…";
     clearAlert();
     try {
       const blob = await api("GET", `/api/rounds/${S.round.round.id}/report.docx`);
@@ -548,9 +556,9 @@
       a.href = url; a.download = S.round.round.filename; a.rel = "noopener";
       document.body.appendChild(a); a.click();
       setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 2000);
-      st.textContent = `Downloaded ${S.round.round.filename} (${(blob.size / 1048576).toFixed(1)} MB). Generate again at any time after making changes.`;
+      st.textContent = `Downloaded ${S.round.round.filename} (${(blob.size / 1048576).toFixed(1)} MB). Export again at any time after making changes.`;
     } catch (err) { fail(err); }
-    finally { btn.disabled = false; btn.textContent = "Generate Word Report"; }
+    finally { btn.disabled = false; btn.textContent = "EXPORT"; }
   }
 
   document.addEventListener("click", async (e) => {

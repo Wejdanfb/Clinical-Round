@@ -25,7 +25,6 @@
       <span class="logo-frame logo-header"><img src="{{ LOGO }}" alt="Clinical Round logo" width="2000" height="2000" decoding="async"></span>
       <span>
         <span class="brand-title">Clinical Round</span>
-        <span class="brand-sub" lang="ar" dir="rtl">نموذج الجولات الادارية للإدارة التنفيذية لخدمات التمريض</span>
       </span>
     </a>
     <button type="button" class="btn btn-onbrand" data-action="logout" id="btn-logout" hidden>Sign out</button>
@@ -151,11 +150,13 @@
       <div class="card generate-card">
         <div class="gen-row">
           <div>
-            <h2>Word report</h2>
-            <p class="hint" id="gen-status">Built from the official blank template each time you generate it. Reports are not stored.</p>
+            <h2>Export Report</h2>
+            <p class="hint" id="gen-status">From template to report, effortlessly. Nothing is stored.</p>
+            <p class="gen-file" id="gen-filename"></p>
+            <p class="gen-warn" id="gen-warn" role="status" hidden></p>
           </div>
           <div class="gen-actions">
-            <button type="button" class="btn btn-primary btn-lg" data-action="generate" id="btn-generate">Generate Word Report</button>
+            <button type="button" class="btn btn-primary btn-lg" data-action="generate" id="btn-generate">EXPORT</button>
           </div>
         </div>
       </div>
