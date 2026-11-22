@@ -97,8 +97,6 @@
   async function loadHome() {
     const data = await api("GET", "/api/rounds");
     show("home");
-    const ret = data.retention;
-    $("#home-retention").textContent = `Completed rounds are deleted automatically ${ret.completed_days} days after completion; rounds left in progress are deleted after ${ret.inactive_days} days without changes. Word reports are never stored.`;
     const list = $("#rounds-list");
     list.innerHTML = "";
     $("#rounds-empty").hidden = data.rounds.length > 0;
