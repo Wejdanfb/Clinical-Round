@@ -170,7 +170,7 @@ def test_security_headers(client):
     assert "frame-ancestors 'none'" in r.headers["Content-Security-Policy"]
     assert r.headers["X-Frame-Options"] == "DENY"
     assert "no-store" in r.headers["Cache-Control"]
-    assert client.get("/healthz").get_json() == {"status": "ok"}
+    assert client.get("/healthz").get_json() == {"status": "ok", "database": "ok"}
 
 
 def test_local_mode_without_password(tmp_path):
@@ -444,3 +444,31 @@ def test_report_filename_convention():
     # only safe characters
     name = report_filename('MGH', 'I/C:U*1 <>|"?', date(2026, 11, 1))[0]
     assert re.fullmatch(r"[A-Z0-9.]+\.docx", name.replace(".docx", "") + ".docx") and name == "C.R.MGH.ICU1.NOV.26.docx"
+
+
+
+# ======================================================== database outage (Nov 2026 incident)
+def test_starts_and_recovers_when_database_unavailable(tmp_path, monkeypatch):
+    """The app must start when the database is unreachable (no crash loop),
+    answer with a clear 503 message, and recover by itself when the database
+    returns - without touching existing data."""
+    import app as appmod
+    monkeypatch.setattr(appmod, "DB_RETRY_SECONDS", 0)
+    missing_dir = tmp_path / "not-yet"                    # SQLite cannot open a file here
+    url = "sqlite:///" + str(missing_dir / "db.sqlite")
+    a = create_app(config.Settings({"DATABASE_URL": url, "SECRET_KEY": "k" * 40, "APP_PASSWORD": PASSWORD}))
+    c = Client(a)
+    assert c.get("/").status_code == 200
+    assert c.get("/healthz").get_json() == {"status": "ok", "database": "unavailable"}
+    r = c.login()
+    assert r.status_code == 503 and "database is currently unavailable" in r.get_json()["error"]
+    # database comes back
+    missing_dir.mkdir()
+    assert c.login().status_code == 200
+    rid = new_round(c)
+    assert c.get("/healthz").get_json()["database"] == "ok"
+    # a restart against the same database keeps the data (tables are only created if missing)
+    a2 = create_app(config.Settings({"DATABASE_URL": url, "SECRET_KEY": "k" * 40, "APP_PASSWORD": PASSWORD}))
+    c2 = Client(a2)
+    assert c2.login().status_code == 200
+    assert [x["id"] for x in c2.get("/api/rounds").get_json()["rounds"]] == [rid]

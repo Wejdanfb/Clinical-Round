@@ -114,7 +114,9 @@ def make_engine(url: str):
     if url.startswith("sqlite"):
         kwargs["connect_args"] = {"check_same_thread": False}
     else:
-        kwargs.update(pool_size=3, max_overflow=3, pool_recycle=300)
+        kwargs.update(pool_size=3, max_overflow=3, pool_recycle=300,
+                      # never wait indefinitely for an unreachable database
+                      connect_args={"connect_timeout": 10})
     engine = create_engine(url, **kwargs)
     if url.startswith("sqlite"):
         @event.listens_for(engine, "connect")

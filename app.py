@@ -19,11 +19,13 @@ import io
 import logging
 import os
 import secrets
+import time
 from datetime import date, timedelta
 
 from flask import Flask, Request, abort, g, jsonify, render_template, request, send_file, session
 from PIL import Image
 from sqlalchemy import func, select, text
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -37,6 +39,9 @@ from report_builder import (Observation as RObservation, Photo as RPhoto, Report
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(BASE_DIR, "assets", "clinical_round_template.docx")
+DB_RETRY_SECONDS = 30                  # how often to retry an unreachable database
+DB_UNAVAILABLE_MSG = ("The database is currently unavailable, so rounds cannot be loaded or saved right now. "
+                      "No data has been changed. Please try again later.")
 LOGIN_LIMIT = 10                       # failed sign-ins per client per 15 minutes
 ATTEMPT_WINDOW = timedelta(minutes=15)
 
@@ -79,16 +84,41 @@ def create_app(settings: Settings | None = None) -> Flask:
     auth_required = bool(settings.app_password)
 
     engine = make_engine(settings.database_url)
-    init_db(engine)
     Session = make_session_factory(engine)
     app.engine, app.Session = engine, Session
+
+    # The app must start even when the database is unreachable (e.g. the
+    # Render database is suspended): otherwise every start attempt crashes and
+    # Render's "waking up" screen never finishes. Tables are created the first
+    # time the database answers. create_all() only adds tables that do not
+    # exist yet - it never alters, empties or drops existing tables or data.
+    db_state = {"ready": False, "last_try": 0.0}
+
+    def ensure_db() -> bool:
+        if db_state["ready"]:
+            return True
+        now = time.monotonic()
+        if db_state["last_try"] and now - db_state["last_try"] < DB_RETRY_SECONDS:
+            return False
+        db_state["last_try"] = now
+        try:
+            init_db(engine)
+            db_state["ready"] = True
+            log.info("Database connection OK")
+        except SQLAlchemyError as exc:
+            log.error("Database unavailable: %s", str(exc).splitlines()[0][:300])
+        return db_state["ready"]
+
+    app.ensure_db = ensure_db
+    ensure_db()
 
     with open(TEMPLATE_PATH, "rb") as fh:
         app.template_bytes = fh.read()
     load_template_map(app.template_bytes)          # fail fast if the template is unusable
 
     retention.reset_timer()
-    retention.maybe_purge(Session, settings, log)
+    if db_state["ready"]:
+        retention.maybe_purge(Session, settings, log)
 
     # ------------------------------------------------------------ helpers
     def db():
@@ -236,13 +266,17 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     # ------------------------------------------------------------ hooks
     PUBLIC = {"/", "/healthz", "/api/session", "/api/login", "/api/logout"}
+    NO_DB_NEEDED = {"/api/session", "/api/logout"}
 
     @app.before_request
     def _before():
         session.permanent = True
         if request.path.startswith("/static/"):
             return
-        retention.maybe_purge(Session, settings, log)
+        if request.path.startswith("/api/") and request.path not in NO_DB_NEEDED and not ensure_db():
+            raise ApiError(DB_UNAVAILABLE_MSG, 503)
+        if db_state["ready"]:
+            retention.maybe_purge(Session, settings, log)
         if request.method in ("POST", "PUT", "PATCH", "DELETE") and request.path.startswith("/api/"):
             sent = request.headers.get("X-CSRF-Token", "")
             if not sent or not hmac.compare_digest(sent, session.get("csrf", "")):
@@ -280,6 +314,15 @@ def create_app(settings: Settings | None = None) -> Flask:
             return jsonify(error=e.description or "Request error."), e.code or 400
         return e
 
+    @app.errorhandler(OperationalError)
+    def _db_down(_e):
+        log.error("Database error: %s", str(_e).splitlines()[0][:300])
+        if g.get("db") is not None:
+            g.db.rollback()
+        db_state["ready"] = False          # re-check on the next request
+        db_state["last_try"] = 0.0
+        return jsonify(error=DB_UNAVAILABLE_MSG), 503
+
     @app.errorhandler(Exception)
     def _unhandled(_e):
         log.exception("Unhandled error")
@@ -297,12 +340,15 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/healthz")
     def healthz():
+        # Liveness check for Render: the web app itself is up. The database
+        # state is reported but does not fail the check - restarting the web
+        # service cannot fix a database outage, it only causes a restart loop.
         try:
             db().execute(text("SELECT 1"))
-            return jsonify(status="ok")
-        except Exception:
-            log.exception("Health check failed")
-            return jsonify(status="database unavailable"), 503
+            return jsonify(status="ok", database="ok")
+        except Exception as exc:
+            log.error("Health check: database unavailable: %s", str(exc).splitlines()[0][:200])
+            return jsonify(status="ok", database="unavailable")
 
     # ------------------------------------------------------------ sign-in
     @app.get("/api/session")
